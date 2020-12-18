@@ -16,7 +16,6 @@ package mazerunner;
  */
 import java.awt.BorderLayout;
 import java.awt.Color;
-import java.awt.Component;
 import java.awt.Container;
 import java.awt.Dimension;
 import java.awt.GridLayout;
@@ -25,22 +24,24 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
-import java.io.FileNotFoundException;
+import java.util.ArrayList;
+import java.util.EmptyStackException;
 import java.util.LinkedList;
+import java.util.Stack;
 import javax.swing.BorderFactory;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import static javax.swing.JFrame.EXIT_ON_CLOSE;
-import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.Timer;
 
 /**
  *
  * @author Ashad Nadeem
  */
-class Generator extends JFrame implements ActionListener {
+public class Generator extends JFrame implements ActionListener {
 
         private static int width;
         private static int hieght;
@@ -55,6 +56,11 @@ class Generator extends JFrame implements ActionListener {
         private ButtonHandler ebHandler, rmHandler;
         private LinkedList<Node> user;
         private keyboardHandler kbh;
+        int[][] distances;
+        final double[] speeds = {0.5, 0.2, 0.1, 0.05, 0.04};
+        Timer timer;
+        private Stack<Integer> complist;
+        private double compSpeed;
 
         public Generator(int level) {
                 //System Settings
@@ -66,6 +72,24 @@ class Generator extends JFrame implements ActionListener {
                 this.cols = level;
                 this.level = level;
 
+                //Initialise CompSpeed
+                switch (level) {
+                        case 10:
+                                compSpeed = speeds[0];
+                                break;
+                        case 30:
+                                compSpeed = speeds[1];
+                                break;
+                        case 50:
+                                compSpeed = speeds[2];
+                                break;
+                        case 90:
+                                compSpeed = speeds[3];
+                                break;
+                        case 110:
+                                compSpeed = speeds[4];
+                                break;
+                }
                 //ImageIcon
                 switch (level) {
                         case 30:
@@ -127,8 +151,6 @@ class Generator extends JFrame implements ActionListener {
                 grid.setSize(width, hieght);
 
                 JPanel button = new JPanel(new GridLayout(1, 2));
-//                button.add(new JLabel());
-//                button.add(new JLabel());
                 button.add(exitJB);
                 button.add(reMazeJB);
 
@@ -175,6 +197,7 @@ class Generator extends JFrame implements ActionListener {
                         cell[i][j].setBackground(Color.white);
                 }
         }
+
         public void paint(int i, int j, Color col) {
                 if (!node[i][j].isWall) {
                         cell[i][j].setBackground(col);
@@ -258,9 +281,14 @@ class Generator extends JFrame implements ActionListener {
         private void markVisited(int pX, int pY) {
                 int j = currx;
                 int i = curry;
+                if (!(currx == 0 && curry == 0)) {
+                        reMazeJB.setEnabled(false);
+                }
                 if (node[i][j].isWall || node[i][j].isVisited) {
                         currx = pX;
                         curry = pY;
+                        JOptionPane.showMessageDialog(null, "No Turning Back, Don't Touch Wall", "Rule-2 Violation", JOptionPane.ERROR_MESSAGE);
+                        return;
                 } else {
                         cell[i][j].setBackground(Color.YELLOW);
                         node[i][j].isVisited = true;
@@ -269,22 +297,48 @@ class Generator extends JFrame implements ActionListener {
                         cell[i][j].setIcon(mouse);
                         user.add(node[i][j]);
                 }
-                if(node[i][j].isEnd){
+                if (node[i][j].isEnd) {
                         //Win
-                        this.setVisible(false);
-                        new victoryUI();
+                        shortestPathFinder p = new shortestPathFinder();
+                        if (user.size() - 1 == distances[rows - 1][cols - 1]) {
+                                GameOver(true);
+                        } else {
+                                GameOver(false);
+                        }
                 }
+                //Ignore start and End Nodes
+                if (node[i][j].isStart || node[i][j].isEnd) {
+                        return;
+                }
+                //All Three Side Walls
                 try {
                         if ((node[i - 1][j].isVisited || node[i - 1][j].isWall)
                                 && (node[i + 1][j].isVisited || node[i + 1][j].isWall)
                                 && (node[i][j - 1].isVisited || node[i][j - 1].isWall)
                                 && (node[i][j + 1].isVisited || node[i][j + 1].isWall)) {
-                                System.out.println("Collission Detected");
-                                JOptionPane.showMessageDialog(null, "GAME OVER!!", "Error", JOptionPane.ERROR_MESSAGE);
-                                
-                                System.exit(0);
+                                GameOver(false);
                         }
                 } catch (Exception e) {
+                }
+                if (i == 0) {
+                        if ((node[i][j - 1].isVisited || node[i][j - 1].isWall) && (node[i][j + 1].isVisited || node[i][j + 1].isWall) && (node[i + 1][j].isVisited || node[i + 1][j].isWall)) {
+                                GameOver(false);
+                        }
+                }
+                if (i == rows - 1) {
+                        if ((node[i][j - 1].isVisited || node[i][j - 1].isWall) && (node[i][j + 1].isVisited || node[i][j + 1].isWall) && (node[i - 1][j].isVisited || node[i - 1][j].isWall)) {
+                                GameOver(false);
+                        }
+                }
+                if (j == 0) {
+                        if ((node[i - 1][j].isVisited || node[i - 1][j].isWall) && (node[i + 1][j].isVisited || node[i + 1][j].isWall) && (node[i][j + 1].isVisited || node[i][j + 1].isWall)) {
+                                GameOver(false);
+                        }
+                }
+                if (j == cols - 1) {
+                        if ((node[i - 1][j].isVisited || node[i - 1][j].isWall) && (node[i + 1][j].isVisited || node[i + 1][j].isWall) && (node[i][j - 1].isVisited || node[i][j - 1].isWall)) {
+                                GameOver(false);
+                        }
                 }
         }
 
@@ -318,9 +372,14 @@ class Generator extends JFrame implements ActionListener {
                                         currx++;
                                         break;
                                 case KeyEvent.VK_R:
-                                        System.out.println("Randomize");
-                                        reset();
-                                        checkMazeValid();
+                                        if (currx == 0 && curry == 0) {
+                                                System.out.println("Randomize");
+                                                reset();
+                                                checkMazeValid();
+                                        } else {
+                                                JOptionPane.showMessageDialog(null, "Once Started Can't ReMaze", "Rule Violation", JOptionPane.ERROR_MESSAGE);
+                                                return;
+                                        }
                                         break;
                                 case KeyEvent.VK_EQUALS:
                                         System.out.println("Increase Level");
@@ -337,7 +396,9 @@ class Generator extends JFrame implements ActionListener {
                                                 JOptionPane.showMessageDialog(null, "Min Level Reached", "Error!", JOptionPane.ERROR_MESSAGE);
                                                 break;
                                         }
-                                        Generator l = new Generator(level - 20);
+                                         {
+                                                Generator l = new Generator(level - 20);
+                                        }
                                         setVisible(false);
                                         break;
                                 // End placing
@@ -366,11 +427,13 @@ class Generator extends JFrame implements ActionListener {
 
         private void checkMazeValid() {
                 shortestPathFinder p = new shortestPathFinder();
-                System.out.println(p.pathExists(node));
+                //System.out.println(p.pathExists(node));
                 while (p.pathExists(node) == false) {
                         //System.out.println(p.pathExists(node));
                         reset();
                 }
+                distances = p.BFS(node);
+                System.out.println(distances[rows - 1][cols - 1]);
         }
 
         public int getCurrx() {
@@ -389,4 +452,92 @@ class Generator extends JFrame implements ActionListener {
                 this.curry = curry;
         }
 
+        public void computerPath() {
+                ArrayList<Integer> list = new ArrayList<>();
+                list.add(cols - 1);
+                list.add(rows - 1);
+                int currx = rows - 1;
+                int curry = cols - 1;
+                for (int i = 0; i < distances[rows - 1][cols - 1]; i++) {
+                        if (currx - 1 >= 0 && currx - 1 < rows && curry >= 0 && curry < cols) {
+                                if (distances[currx][curry] - 1 == distances[currx - 1][curry]) {
+                                        currx = currx - 1;
+                                        list.add(curry);
+                                        list.add(currx);
+                                        continue;
+                                }
+                        }
+                        if (currx >= 0 && currx < rows && curry - 1 >= 0 && curry - 1 < cols) {
+                                if (distances[currx][curry] - 1 == distances[currx][curry - 1]) {
+                                        curry = curry - 1;
+                                        list.add(curry);
+                                        list.add(currx);
+                                        continue;
+                                }
+                        }
+                        if (currx + 1 >= 0 && currx + 1 < rows && curry >= 0 && curry < cols) {
+                                if (distances[currx][curry] - 1 == distances[currx + 1][curry]) {
+                                        currx = currx + 1;
+                                        list.add(curry);
+                                        list.add(currx);
+                                        continue;
+                                }
+                        }
+                        if (currx >= 0 && currx < rows && curry + 1 >= 0 && curry + 1 < cols) {
+                                if (distances[currx][curry] - 1 == distances[currx][curry + 1]) {
+                                        curry = curry + 1;
+                                        list.add(curry);
+                                        list.add(currx);
+                                        continue;
+                                }
+                        }
+                }
+
+                System.out.println(list);
+                complist = new Stack<Integer>();
+                for (int i = 0; i < list.size(); i++) {
+                        complist.add(list.get(i));
+                }
+
+                highlightComputerPath();
+        }
+
+        public void highlightComputerPath() {
+                try {
+                        delay(compSpeed);
+                        //paint(I-th Componect, J-th Component, Color.GREEN);
+                        paint(complist.pop(), complist.pop(), Color.GREEN);
+                } catch (EmptyStackException s) {
+                        return;
+                }
+        }
+
+        public void delay(double d) {
+                // delay of one second here
+                timer = new Timer(0, new ActionListener() {
+                        @Override
+                        public void actionPerformed(ActionEvent evt) {
+                                //What action Should it Perform afterDelay Time?
+                                highlightComputerPath();
+                        }
+                });
+                timer.setInitialDelay((int) (d * 1000)); //wait one second * d
+                timer.setRepeats(false); //only once
+                timer.start();
+        }
+
+        private void GameOver(boolean win) {
+                computerPath();
+                if (win) {
+                        victoryUI v = new victoryUI(this, compSpeed*user.size());
+                } else {
+                        if (node[currx][curry].isEnd) {
+                                JOptionPane.showMessageDialog(null, "lol jeet ker bhi haar gaye", "Error", JOptionPane.ERROR_MESSAGE);
+                        } else {
+                                JOptionPane.showMessageDialog(null, "GAME OVER!!", "Error", JOptionPane.ERROR_MESSAGE);
+                                System.exit(0);
+                        }
+                }
+                return;
+        }
 }

@@ -7,7 +7,7 @@ package mazerunner;
 
 /**
  *
- * @author Ashad
+ * @author 
  */
 public class MazeRunner {
 
