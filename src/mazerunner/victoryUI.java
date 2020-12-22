@@ -11,6 +11,12 @@ package mazerunner;
 
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.RandomAccessFile;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import javax.swing.JOptionPane;
 import javax.swing.Timer;
 
 public class victoryUI extends javax.swing.JFrame {
@@ -18,25 +24,24 @@ public class victoryUI extends javax.swing.JFrame {
         /**
          * Creates new form victoryUI
          */
+        double bestTime;
+        int index;
+        String name;
 
-        public victoryUI(Generator prevUI, double d) {
+        victoryUI(Generator aThis, double d, stopwatch s, double bestTime, int index) {
+                this.bestTime = bestTime;
+                this.index = index;
                 initComponents();
-                delay(prevUI, d);
+                delay(aThis, d, s);
         }
 
-        public void delay(Generator prevUI, double d) {
-                // delay of one second here
-                timer = new Timer(0, new ActionListener() {
-                        @Override
-                        public void actionPerformed(ActionEvent evt) {
-                                //What action Should it Perform afterDelay Time?
-                                setVisible(true);
-                                prevUI.setVisible(false);
-                        }
-                });
-                timer.setInitialDelay((int) (d * 1000)); //wait one second * d
-                timer.setRepeats(false); //only once
-                timer.start();
+        private victoryUI() {
+                //throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        }
+
+        victoryUI(Generator aThis, double d, stopwatch s, double bestTime, int index, player p) {
+                this(aThis, d, s, bestTime, index);
+                this.name = p.name;
         }
 
         /**
@@ -51,6 +56,7 @@ public class victoryUI extends javax.swing.JFrame {
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
         setTitle("VICTORY");
+        getContentPane().setLayout(new org.netbeans.lib.awtextra.AbsoluteLayout());
 
         jButton1.setBorderPainted(false);
         jButton1.setContentAreaFilled(false);
@@ -60,32 +66,59 @@ public class victoryUI extends javax.swing.JFrame {
                 jButton1ActionPerformed(evt);
             }
         });
+        getContentPane().add(jButton1, new org.netbeans.lib.awtextra.AbsoluteConstraints(10, 740, 130, 130));
 
-        jLabel1.setIcon(new javax.swing.ImageIcon(getClass().getResource("/mazerunner/win.png"))); // NOI18N
-
-        javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
-        getContentPane().setLayout(layout);
-        layout.setHorizontalGroup(
-            layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(jLabel1)
-            .addGroup(layout.createSequentialGroup()
-                .addGap(20, 20, 20)
-                .addComponent(jButton1, javax.swing.GroupLayout.PREFERRED_SIZE, 80, javax.swing.GroupLayout.PREFERRED_SIZE))
-        );
-        layout.setVerticalGroup(
-            layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(jLabel1)
-            .addGroup(layout.createSequentialGroup()
-                .addGap(320, 320, 320)
-                .addComponent(jButton1, javax.swing.GroupLayout.PREFERRED_SIZE, 80, javax.swing.GroupLayout.PREFERRED_SIZE))
-        );
+        jLabel1.setIcon(new javax.swing.ImageIcon(getClass().getResource("/mazerunner/victory.png"))); // NOI18N
+        getContentPane().add(jLabel1, new org.netbeans.lib.awtextra.AbsoluteConstraints(0, 0, -1, -1));
 
         pack();
         setLocationRelativeTo(null);
     }// </editor-fold>//GEN-END:initComponents
 
+        public void delay(Generator prevUI, double d, stopwatch s) {
+                // delay of one second here
+                timer = new Timer(0, new ActionListener() {
+
+                        @Override
+                        public void actionPerformed(ActionEvent e) {
+                                //What action Should it Perform afterDelay Time?
+
+                                prevUI.setVisible(false);
+                                double time = s.minute * 60 + s.second + s.csecond / 100.0;
+                                if (bestTime == 0 || time < bestTime) {
+                                        try {
+                                                RandomAccessFile file = new RandomAccessFile("bestTimes.dat", "rw");
+                                                file.seek(index * 48);
+                                                file.writeDouble(Math.round(time * 100) / 100.0);
+                                                StringBuffer sb;
+                                                sb = new StringBuffer(name);
+                                                sb.setLength(20);
+                                                file.writeChars(sb.toString());
+
+                                                new highscoreUI(bestTime, time).setVisible(true);
+
+                                        } catch (FileNotFoundException ex) {
+                                        } catch (IOException ex) {
+                                                Logger.getLogger(victoryUI.class.getName()).log(Level.SEVERE, null, ex);
+                                        }
+
+                                } else {
+                                        setVisible(true);
+                                }
+
+                                s.setVisible(false);
+
+                        }
+                });
+                timer.setInitialDelay((int) (d * 1000)); //wait one second * d
+                timer.setRepeats(false); //only once
+                timer.start();
+        }
+
+
     private void jButton1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton1ActionPerformed
-            new Home().setVisible(true);
+            
+                    new Home().setVisible(true);
             this.setVisible(false);
     }//GEN-LAST:event_jButton1ActionPerformed
 
@@ -124,7 +157,10 @@ public class victoryUI extends javax.swing.JFrame {
                 });
         }
 
+        
+
         private Timer timer;
+
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JButton jButton1;
     private javax.swing.JLabel jLabel1;

@@ -5,18 +5,20 @@
  */
 package mazerunner;
 
+import java.util.Comparator;
+
 /**
  *
  * @author Dell
  */
-public class startMaze {
+class MyComparator implements Comparator<player> {
 
-    /**
-     * @param args the command line arguments
-     */
-    public static void main(String[] args) {
-        new Generator(10).setVisible(true);
+    public MyComparator() {
+    }
 
+    @Override
+    public int compare(player o1, player o2) {
+        return o2.successRate.intValue() - o1.successRate.intValue();
     }
     
 }

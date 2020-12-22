@@ -24,15 +24,19 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.EmptyStackException;
 import java.util.LinkedList;
 import java.util.Stack;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.swing.BorderFactory;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import static javax.swing.JFrame.EXIT_ON_CLOSE;
+import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.Timer;
@@ -61,11 +65,39 @@ public class Generator extends JFrame implements ActionListener {
         Timer timer;
         private Stack<Integer> complist;
         private double compSpeed;
+        private player p;
+        private player player;
+        private stopwatch s;
+        boolean started = false;
+        private double bestTime;
+        private int index;
+        private JLabel loading;
 
-        public Generator(int level) {
+        Generator(int level) throws IOException {
+                //Stop Watch Settings
+                s = new stopwatch();
+                
+                
                 //System Settings
                 width = (int) (getDefaultToolkit().getScreenSize().getHeight() - 30);
                 hieght = (int) (getDefaultToolkit().getScreenSize().getHeight() - 30);
+                
+                //Loading Gif
+                loading = new JLabel();
+                int x1;
+                int y1;
+                loading.setIcon(new javax.swing.ImageIcon(getClass().getResource("/mazerunner/LoadingGear.gif"))); // Gear
+                loading.setIcon(new javax.swing.ImageIcon(getClass().getResource("/mazerunner/LoadingGear2.gif"))); x1 = 350; y1 = 172; // Gear
+                //loading.setIcon(new javax.swing.ImageIcon(getClass().getResource("/mazerunner/LoadingBlock.gif"))); x1 = 400; y1 = 133;  // Block 
+                //loading.setIcon(new javax.swing.ImageIcon(getClass().getResource("/mazerunner/LoadingSlime.gif"))); x1 = 256; y1 = 256; // Slime
+                //loading.setIcon(new javax.swing.ImageIcon(getClass().getResource("/mazerunner/LoadingBounce.gif"))); x1 = 292; y1 = 247; // Bounce
+                loading.setSize(30,30);
+                int x0 = (width/2) - x1 + 100;
+                int y0 = (hieght/2)-y1;
+                loading.setBounds(x0, y0,x1,y1);
+                getContentPane().add(loading);
+                loading.setEnabled(false);
+                loading.setVisible(false);
 
                 //Initaialise Level
                 this.rows = level;
@@ -158,11 +190,30 @@ public class Generator extends JFrame implements ActionListener {
                 pane.setLayout(new BorderLayout());
                 pane.add(grid, BorderLayout.CENTER);
                 pane.add(button, BorderLayout.SOUTH);
-
-                setSize(width, hieght);
-                setLocationRelativeTo(null);
+                
+                setSize(width-100, hieght-100);
+                this.setLocation((int) (getDefaultToolkit().getScreenSize().width /2 - (width -100)/2 ), 100);
+                s.setVisible(true);
                 setVisible(true);
                 setDefaultCloseOperation(EXIT_ON_CLOSE);
+        }
+
+        Generator(player p, int level) throws IOException {
+                this(level);
+                this.p = p;
+                System.out.println("Player:"+p.name +", lvl:" + level);
+        }
+
+        Generator(player p, int level, double bestTime) throws IOException {
+                this(p, level);
+                this.bestTime = bestTime;
+                System.out.println("Player:"+p.name +", BT:" + bestTime);
+        }
+
+        Generator(player p, int level, double bestTime, int index) throws IOException{
+                this(p, level, bestTime);
+                this.index = index;
+                System.out.println("Player:"+p.name +", BT:" + bestTime+", Index: "+ index);
         }
 
         @Override
@@ -177,6 +228,7 @@ public class Generator extends JFrame implements ActionListener {
                 }
         }
 
+
         private class ButtonHandler implements ActionListener {
 
                 public void actionPerformed(ActionEvent press) {
@@ -184,8 +236,16 @@ public class Generator extends JFrame implements ActionListener {
                                 System.exit(0);
                         }
                         if (press.getSource() == reMazeJB) {
-                                reset();
-                                checkMazeValid();
+                                try {
+                                        reset();
+                                } catch (IOException ex) {
+                                        Logger.getLogger(Generator.class.getName()).log(Level.SEVERE, null, ex);
+                                }
+                                try {
+                                        checkMazeValid();
+                                } catch (IOException ex) {
+                                        Logger.getLogger(Generator.class.getName()).log(Level.SEVERE, null, ex);
+                                }
                         }
                 }
         }
@@ -254,7 +314,7 @@ public class Generator extends JFrame implements ActionListener {
                 }
         }
 
-        private void reset() {
+        private void reset() throws IOException {
                 this.setCurrx(0);
                 this.setCurry(0);
                 this.node = new Node[rows][cols];
@@ -278,16 +338,27 @@ public class Generator extends JFrame implements ActionListener {
                 return this.node[i][j];
         }
 
-        private void markVisited(int pX, int pY) {
+        private void markVisited(int pX, int pY) throws IOException {
                 int j = currx;
                 int i = curry;
                 if (!(currx == 0 && curry == 0)) {
                         reMazeJB.setEnabled(false);
+                        //stopwatch s = new stopwatch();
+                        //System.out.println("hi");
+                        if (!started) {
+                                s.start();
+                                started = true;
+                        }
                 }
-                if (node[i][j].isWall || node[i][j].isVisited) {
+                if(node[i][j].isVisited){
                         currx = pX;
                         curry = pY;
-                        JOptionPane.showMessageDialog(null, "No Turning Back, Don't Touch Wall", "Rule-2 Violation", JOptionPane.ERROR_MESSAGE);
+                        JOptionPane.showMessageDialog(null, "No Turning Back", "Rule-2 Violation", JOptionPane.ERROR_MESSAGE);
+                        return;
+                }
+                if (node[i][j].isWall) {
+                        currx = pX;
+                        curry = pY;
                         return;
                 } else {
                         cell[i][j].setBackground(Color.YELLOW);
@@ -300,7 +371,8 @@ public class Generator extends JFrame implements ActionListener {
                 if (node[i][j].isEnd) {
                         //Win
                         shortestPathFinder p = new shortestPathFinder();
-                        if (user.size() - 1 == distances[rows - 1][cols - 1]) {
+                        System.out.println("User:" + user.size());
+                        if (user.size()-1 == distances[rows - 1][cols - 1]) {
                                 GameOver(true);
                         } else {
                                 GameOver(false);
@@ -374,8 +446,16 @@ public class Generator extends JFrame implements ActionListener {
                                 case KeyEvent.VK_R:
                                         if (currx == 0 && curry == 0) {
                                                 System.out.println("Randomize");
-                                                reset();
-                                                checkMazeValid();
+                                                try {
+                                                        reset();
+                                                } catch (IOException ex) {
+                                                        Logger.getLogger(Generator.class.getName()).log(Level.SEVERE, null, ex);
+                                                }
+                                                try {
+                                                        checkMazeValid();
+                                                } catch (IOException ex) {
+                                                        Logger.getLogger(Generator.class.getName()).log(Level.SEVERE, null, ex);
+                                                }
                                         } else {
                                                 JOptionPane.showMessageDialog(null, "Once Started Can't ReMaze", "Rule Violation", JOptionPane.ERROR_MESSAGE);
                                                 return;
@@ -387,7 +467,13 @@ public class Generator extends JFrame implements ActionListener {
                                                 JOptionPane.showMessageDialog(null, "Max Level Reached", "Error!", JOptionPane.ERROR_MESSAGE);
                                                 break;
                                         }
-                                        Generator k = new Generator(level + 20);
+                                         {
+                                                try {
+                                                        Generator k = new Generator(level + 20);
+                                                } catch (IOException ex) {
+                                                        Logger.getLogger(Generator.class.getName()).log(Level.SEVERE, null, ex);
+                                                }
+                                        }
                                         setVisible(false);
                                         break;
                                 case KeyEvent.VK_MINUS:
@@ -397,7 +483,11 @@ public class Generator extends JFrame implements ActionListener {
                                                 break;
                                         }
                                          {
-                                                Generator l = new Generator(level - 20);
+                                                try {
+                                                        Generator l = new Generator(level - 20);
+                                                } catch (IOException ex) {
+                                                        Logger.getLogger(Generator.class.getName()).log(Level.SEVERE, null, ex);
+                                                }
                                         }
                                         setVisible(false);
                                         break;
@@ -413,7 +503,11 @@ public class Generator extends JFrame implements ActionListener {
                                 curry = prevY;
                                 return;
                         }
-                        markVisited(prevX, prevY);
+                        try {
+                                markVisited(prevX, prevY);
+                        } catch (IOException ex) {
+                                Logger.getLogger(Generator.class.getName()).log(Level.SEVERE, null, ex);
+                        }
                 }
 
                 @Override
@@ -425,7 +519,7 @@ public class Generator extends JFrame implements ActionListener {
                 }
         }
 
-        private void checkMazeValid() {
+        private void checkMazeValid() throws IOException {
                 shortestPathFinder p = new shortestPathFinder();
                 //System.out.println(p.pathExists(node));
                 while (p.pathExists(node) == false) {
@@ -526,16 +620,31 @@ public class Generator extends JFrame implements ActionListener {
                 timer.start();
         }
 
-        private void GameOver(boolean win) {
+        private void GameOver(boolean win) throws IOException {
+                System.out.println("WIn?" + win);
+                s.stop();
+                JOptionPane.showMessageDialog(null, "Now Let's See What Path Computer Chooses!", "A.I.", JOptionPane.INFORMATION_MESSAGE);
+                loading.setEnabled(true);
+                loading.setVisible(true);
                 computerPath();
+                player = new player();
                 if (win) {
-                        victoryUI v = new victoryUI(this, compSpeed*user.size());
+                        p.played++;
+                        p.wins++;
+                        p.successRate = (100.0 * p.wins) / p.played;
+                        player.updateStatistics(p);
+                        victoryUI v = new victoryUI(this, compSpeed * distances[rows - 1][cols - 1] + 3, s, bestTime, index, p);
                 } else {
+                        p.played++;
+                        p.successRate = (100.0 * p.wins) / p.played;
+                        player.updateStatistics(p);
                         if (node[currx][curry].isEnd) {
-                                JOptionPane.showMessageDialog(null, "lol jeet ker bhi haar gaye", "Error", JOptionPane.ERROR_MESSAGE);
+                                // JOptionPane.showMessageDialog(null, "lol jeet ker bhi haar gaye", "Error", JOptionPane.ERROR_MESSAGE);
+                                new hardLuckUI(this, compSpeed * distances[rows - 1][cols - 1] + 2, s);
                         } else {
-                                JOptionPane.showMessageDialog(null, "GAME OVER!!", "Error", JOptionPane.ERROR_MESSAGE);
-                                System.exit(0);
+                                //JOptionPane.showMessageDialog(null, "GAME OVER!!", "Error", JOptionPane.ERROR_MESSAGE);
+                                new gameoverUI(this, compSpeed * distances[rows - 1][cols - 1] + 2, s);
+
                         }
                 }
                 return;
