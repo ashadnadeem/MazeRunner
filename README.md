@@ -1,4 +1,5 @@
 # Maze Runner
+Maze Solving Game, user competes with ShortestPathFinding Algorithm aswell as other players with their best-time.
 
 ## About
 - The HOME GUI for user to select different level of difficulty to play
